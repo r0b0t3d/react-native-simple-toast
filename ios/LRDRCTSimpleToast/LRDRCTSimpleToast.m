@@ -57,27 +57,29 @@ RCT_EXPORT_MODULE()
 
 - (NSDictionary *)constantsToExport {
     return @{
-             @"SHORT": [NSNumber numberWithDouble:LRDRCTSimpleToastShortDuration],
-             @"LONG": [NSNumber numberWithDouble:LRDRCTSimpleToastLongDuration],
-             @"BOTTOM": [NSNumber numberWithInteger:LRDRCTSimpleToastGravityBottom],
-             @"CENTER": [NSNumber numberWithInteger:LRDRCTSimpleToastGravityCenter],
-             @"TOP": [NSNumber numberWithInteger:LRDRCTSimpleToastGravityTop]
-             };
+        @"SHORT": [NSNumber numberWithDouble:LRDRCTSimpleToastShortDuration],
+        @"LONG": [NSNumber numberWithDouble:LRDRCTSimpleToastLongDuration],
+        @"BOTTOM": [NSNumber numberWithInteger:LRDRCTSimpleToastGravityBottom],
+        @"CENTER": [NSNumber numberWithInteger:LRDRCTSimpleToastGravityCenter],
+        @"TOP": [NSNumber numberWithInteger:LRDRCTSimpleToastGravityTop]
+    };
 }
 
 RCT_EXPORT_METHOD(show:(NSString *)msg duration:(double)duration {
-    [self _show:msg duration:duration gravity:LRDRCTSimpleToastGravityBottom];
-});
+                  [self _show:msg duration:duration gravity:LRDRCTSimpleToastGravityBottom];
+                  });
 
 RCT_EXPORT_METHOD(showWithGravity:(NSString *)msg duration:(double)duration gravity:(nonnull NSNumber *)gravity{
-    [self _show:msg duration:duration gravity:gravity.intValue];
-});
+                  [self _show:msg duration:duration gravity:gravity.intValue];
+                  });
 
 - (void)_show:(NSString *)msg duration:(NSTimeInterval)duration gravity:(NSInteger)gravity {
     dispatch_async(dispatch_get_main_queue(), ^{
-        UIView *root = [[[[[UIApplication sharedApplication] delegate] window] rootViewController] view];
+        UIViewController *rootViewController = [[[[UIApplication sharedApplication] delegate] window] rootViewController];
+        UIViewController *topViewController = [self topViewControllerWithRootViewController:rootViewController];
+        UIView *root = [topViewController view];
         CGRect bound = root.bounds;
-        bound.size.height -= _keyOffset;
+        bound.size.height -= self->_keyOffset;
         if (bound.size.height > LRDRCTSimpleToastBottomOffset*2) {
             bound.origin.y += LRDRCTSimpleToastBottomOffset;
             bound.size.height -= LRDRCTSimpleToastBottomOffset*2;
@@ -95,15 +97,30 @@ RCT_EXPORT_METHOD(showWithGravity:(NSString *)msg duration:(double)duration grav
             position = CSToastPositionBottom;
         }
         [view makeToast:msg
-            duration:duration
-            position:position
-            title:nil
-            image:nil
-            style:nil
-            completion:^(BOOL didTap) {
-                [blockView removeFromSuperview];
-            }];
+               duration:duration
+               position:position
+                  title:nil
+                  image:nil
+                  style:nil
+             completion:^(BOOL didTap) {
+            [blockView removeFromSuperview];
+        }];
     });
+}
+
+- (UIViewController*)topViewControllerWithRootViewController:(UIViewController*)rootViewController {
+    if ([rootViewController isKindOfClass:[UITabBarController class]]) {
+        UITabBarController* tabBarController = (UITabBarController*)rootViewController;
+        return [self topViewControllerWithRootViewController:tabBarController.selectedViewController];
+    } else if ([rootViewController isKindOfClass:[UINavigationController class]]) {
+        UINavigationController* navigationController = (UINavigationController*)rootViewController;
+        return [self topViewControllerWithRootViewController:navigationController.visibleViewController];
+    } else if (rootViewController.presentedViewController) {
+        UIViewController* presentedViewController = rootViewController.presentedViewController;
+        return [self topViewControllerWithRootViewController:presentedViewController];
+    } else {
+        return rootViewController;
+    }
 }
 
 + (BOOL)requiresMainQueueSetup
